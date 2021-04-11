@@ -72,8 +72,7 @@ class MPEServiceMetadata:
                   "model_ipfs_hash": "",
                   "mpe_address": "",
                   "groups": [],
-                  "assets": {},
-                  "media": []
+                  "service_description": {}
                   }
 
     def set_simple_field(self, f, v):
@@ -168,6 +167,21 @@ class MPEServiceMetadata:
             if group["group_name"] == group_name:
                 self.m["groups"].remove(group)
 
+    def group_init(self, group_name):
+        """Required values for creating a new payment group."""
+        self.add_group(group_name)
+        fixed_price = int(input("Set fixed price: "))
+        self.set_fixed_price_in_cogs(group_name, fixed_price)
+        endpoints = input("Add endpoints as comma separated values: ").split(',')
+        for endpoint in endpoints:
+            self.add_endpoint_to_group(group_name, endpoint.strip())
+        daemon_addresses = input("Add daemon addresses as comma separated values: ").split(',')
+        for daemon_address in daemon_addresses:
+            self.add_daemon_address_to_group(group_name, daemon_address.strip())
+        if input('Free calls included? [y/n] ').lower() == 'y':
+            self.set_free_calls_for_group(group_name, int(input('free calls: (15) ') or 15))
+            self.set_freecall_signer_address(group_name, input('free call signer address: '))
+
     def add_asset(self, asset_ipfs_hash, asset_type):
         # Check if we need to validation if ssame asset type is added twice if we need to add it or replace the existing one
 
@@ -213,7 +227,7 @@ class MPEServiceMetadata:
         else:
             individual_media['order'] = self.m['media'][-1]['order'] + 1
         individual_media['url'] = url
-        individual_media['file_type']
+        individual_media['file_type'] = media_type
         if media_type == 'image':
             individual_media['alt_text'] = 'hover_on_the_image_text'
         else:

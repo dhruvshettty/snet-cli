@@ -1,6 +1,9 @@
 import json
+import os, subprocess
 from collections import defaultdict
 from re import search
+import sys
+import time
 
 import snet.snet_cli.utils.ipfs_utils as ipfs_utils
 from grpc_health.v1 import health_pb2 as heartb_pb2
@@ -21,6 +24,76 @@ class MPEServiceCommand(BlockchainCommand):
         ipfs_hash_base58 = ipfs_utils.publish_proto_in_ipfs(
             self._get_ipfs_client(), self.args.protodir)
         self._printout(ipfs_hash_base58)
+
+    def service_metadata_init(self):
+        """Utility for creating a service metadata file."""
+
+        print("This utility will walk you through creating the service metadata file.",
+             "It only covers the most common items and tries to guess sensible defaults.",
+             "",
+             "See `snet service metadata-init -h` on how to use this utility.",
+             "",
+             "Press ^C at any time to quit.", sep='\n')
+        metadata = MPEServiceMetadata()
+        mpe_address = self.get_mpe_address()
+        try:
+            display_name = input("display name: ").strip()
+            # Find number of payment groups available for organization
+            while True:
+                organization_id = input(f"organization id `{display_name}` service would be linked to: ").strip()
+                org_metadata_text = subprocess.run(f'snet organization print-metadata {organization_id} {organization_id}',
+                               capture_output=True,
+                               shell=True,
+                               text=True)
+                if org_metadata_text.returncode == 0:
+                    org_metadata_dict = json.loads(org_metadata_text.stdout)
+                    no_of_groups = len(org_metadata_dict['groups'])
+                    break
+                else:
+                    print(f"Invalid org id: `{organization_id}`")
+            while True:
+                try:
+                    protodir_path = input("protodir path: ")
+                    model_ipfs_hash_base58 = ipfs_utils.publish_proto_in_ipfs(self._get_ipfs_client(), protodir_path)
+                    break
+                except Exception:
+                    print(f'Invalid path: "{protodir_path}"')
+            if no_of_groups == 1:
+                metadata.group_init('default_group')
+            else:
+                while input("Add group? [y/n] ") == 'y':
+                    metadata.group_init(input('group name: '))
+            service_description = {
+                "url": input("user guide url: "),
+                "description": input("service long description: "),
+                "short_description": input("service short description: ")
+            }
+            metadata.add_contributor(input('Enter contributor name: '), input('Enter contributor email: '))
+            while input('Add another contributor? [y/n] ').lower() == 'y':
+                metadata.add_contributor(input('Enter contributor name '), input('Enter contributor email: '))
+
+            metadata.set_simple_field("model_ipfs_hash", model_ipfs_hash_base58)
+            metadata.set_simple_field("mpe_address", mpe_address)
+            metadata.set_simple_field("display_name", display_name)
+            metadata.set_simple_field("service_description", service_description)
+
+            print('', '', sep='\n')
+            print(json.dumps(metadata.m, indent=2))
+            print('Are you sure you want to create? [y/n] ' , end='')
+            if input() == 'y':
+                file_name = input(f'Choose file name: (service_metadata)') or self.args.metadata_file
+                file_name += '.json'
+                metadata.save_pretty(file_name)
+                print(f"{file_name} created.")
+            else:
+                print("ABORTED")
+                sys.exit(0)
+        except KeyboardInterrupt:
+            print(" `snet service metadata-init` cancelled.")
+            try:
+                sys.exit(0)
+            except SystemExit:
+                os._exit(0)
 
     def publish_proto_metadata_init(self):
         model_ipfs_hash_base58 = ipfs_utils.publish_proto_in_ipfs(
@@ -166,7 +239,7 @@ class MPEServiceCommand(BlockchainCommand):
         metadata = load_mpe_service_metadata(self.args.metadata_file)
         url_validator = r'https?:\/\/(www\.)?([-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_\+.~#?&//=]*)'  # Support endpoints only with SSL
         # Automatic media type identification
-        if search(r'^.+\.(jpg|jpeg|png)$', self.args.media_url):
+        if search(r'^.+\.(jpg|jpeg|png|gif)$', self.args.media_url):
             media_type = 'image'
         elif search(r'^.+\.(mp4)$', self.args.media_url):
             media_type = 'video'
@@ -186,7 +259,7 @@ class MPEServiceCommand(BlockchainCommand):
                 raise ValueError("Media endpoint supported only for secure sites.")
             else:
                 raise ValueError(f"Entered url '{self.args.media_url}' is invalid.")
-        file_extension_validator = r'^.+\.(jpg|JPG|gif|GIF|mp4)$'
+        file_extension_validator = r'^.+\.(jpg|jpeg|JPG|png|gif|GIF|mp4)$'
         # Detect whether to add asset on IPFS or if external resource
         if search(file_extension_validator, self.args.media_url):
             asset_file_ipfs_hash_base58 = ipfs_utils.publish_file_in_ipfs(self._get_ipfs_client(), self.args.media_url)
