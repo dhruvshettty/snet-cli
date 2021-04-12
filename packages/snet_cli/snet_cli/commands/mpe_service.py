@@ -1,5 +1,5 @@
 import json
-import os, subprocess
+import os
 from collections import defaultdict
 from re import search
 import sys
@@ -26,7 +26,15 @@ class MPEServiceCommand(BlockchainCommand):
         self._printout(ipfs_hash_base58)
 
     def service_metadata_init(self):
-        """Utility for creating a service metadata file."""
+        """Utility for creating a service metadata file.
+
+        Mandatory fields:
+            display_name
+            groups (default_group)
+            endpoints
+            daemon addresses
+            contributors
+        """
 
         print("This utility will walk you through creating the service metadata file.",
              "It only covers the most common items and tries to guess sensible defaults.",
@@ -40,17 +48,13 @@ class MPEServiceCommand(BlockchainCommand):
             display_name = input("display name: ").strip()
             # Find number of payment groups available for organization
             while True:
-                organization_id = input(f"organization id `{display_name}` service would be linked to: ").strip()
-                org_metadata_text = subprocess.run(f'snet organization print-metadata {organization_id} {organization_id}',
-                               capture_output=True,
-                               shell=True,
-                               text=True)
-                if org_metadata_text.returncode == 0:
-                    org_metadata_dict = json.loads(org_metadata_text.stdout)
-                    no_of_groups = len(org_metadata_dict['groups'])
+                org_id = input(f"organization id `{display_name}` service would be linked to: ").strip()
+                try:
+                    org_metadata = self._get_organization_metadata_from_registry(org_id)
+                    no_of_groups = len(org_metadata.groups)
                     break
-                else:
-                    print(f"Invalid org id: `{organization_id}`")
+                except Exception:
+                    print(f"`{organization_id}` is invalid.")
             while True:
                 try:
                     protodir_path = input("protodir path: ")
@@ -72,16 +76,15 @@ class MPEServiceCommand(BlockchainCommand):
             while input('Add another contributor? [y/n] ').lower() == 'y':
                 metadata.add_contributor(input('Enter contributor name '), input('Enter contributor email: '))
 
-            metadata.set_simple_field("model_ipfs_hash", model_ipfs_hash_base58)
-            metadata.set_simple_field("mpe_address", mpe_address)
-            metadata.set_simple_field("display_name", display_name)
-            metadata.set_simple_field("service_description", service_description)
-
+            metadata.set_simple_field('model_ipfs_hash', model_ipfs_hash_base58)
+            metadata.set_simple_field('mpe_address', mpe_address)
+            metadata.set_simple_field('display_name', display_name)
+            metadata.set_simple_field('service_description', service_description)
             print('', '', sep='\n')
             print(json.dumps(metadata.m, indent=2))
-            print('Are you sure you want to create? [y/n] ' , end='')
+            print("Are you sure you want to create? [y/n] ", end='')
             if input() == 'y':
-                file_name = input(f'Choose file name: (service_metadata)') or self.args.metadata_file
+                file_name = input(f"Choose file name: (service_metadata) ") or 'service_metadata'
                 file_name += '.json'
                 metadata.save_pretty(file_name)
                 print(f"{file_name} created.")
@@ -388,8 +391,23 @@ class MPEServiceCommand(BlockchainCommand):
                 raise Exception(
                     "Group name %s does not exist in organization" % group["group_name"])
 
-    def publish_service_with_metadata(self):
+    def _validate_correct_service_metadata_format(self):
+        """Service metadata format validation function
 
+        1) Checks if required fields (requirements) are first present.
+        2) A `dictionary_validate` method is used to check structure consistency and if any empty values.
+
+        """
+        metadata = load_mpe_service_metadata(self.args.metadata_file)
+        requirements = ('version', 'display_name', 'encoding', 'service_type',
+                        'model_ipfs_hash', 'mpe_address', 'groups', 'contributors')
+        for requirement in requirements:
+            if requirement not in metadata.m.keys():
+                raise Exception(f'`{requirement}` not present in metadata.')
+        metadata.service_metadata_validate(metadata.m)
+
+    def publish_service_with_metadata(self):
+        self._validate_correct_service_metadata_format()
         self._validate_service_group_with_org_group_and_update_group_id(
             self.args.org_id, self.args.metadata_file)
         metadata_uri = hash_to_bytesuri(

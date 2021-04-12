@@ -170,11 +170,23 @@ class MPEServiceMetadata:
     def group_init(self, group_name):
         """Required values for creating a new payment group."""
         self.add_group(group_name)
-        fixed_price = int(input("Set fixed price: "))
+        while True:
+            try:
+                fixed_price = int(input("Set fixed price: "))
+            except Exception:
+                print("Enter a valid integer.")
+            else:
+                break
         self.set_fixed_price_in_cogs(group_name, fixed_price)
-        endpoints = input("Add endpoints as comma separated values: ").split(',')
-        for endpoint in endpoints:
-            self.add_endpoint_to_group(group_name, endpoint.strip())
+        while True:
+            try:
+                endpoints = input("Add endpoints as comma separated values: ").split(',')
+                for endpoint in endpoints:
+                    self.add_endpoint_to_group(group_name, endpoint.strip())
+            except Exception:
+                print("Endpoints required.")
+            else:
+                break
         daemon_addresses = input("Add daemon addresses as comma separated values: ").split(',')
         for daemon_address in daemon_addresses:
             self.add_daemon_address_to_group(group_name, daemon_address.strip())
@@ -366,6 +378,25 @@ class MPEServiceMetadata:
     def save_pretty(self, file_name):
         with open(file_name, 'w') as f:
             f.write(self.get_json_pretty())
+
+    def service_metadata_validate(self, check_dict):
+        """Validates whether service metadata structure is consistent
+        and is not empty. Raises exception for any inconsistency.
+
+        Args:
+            check_dict (dict): Service metadata dictionary.
+
+        """
+        for key, value in check_dict.items():
+            if isinstance(value, list):
+                if len(value) == 0:
+                    raise Exception(f'`{key}` is empty.')
+                else:
+                    for _ in value:
+                        if isinstance(_, dict):
+                            self.service_metadata_validate(_)
+            elif value == "":
+                raise Exception(f"`{key}` is empty.")
 
     def __getitem__(self, key):
         return self.m[key]
