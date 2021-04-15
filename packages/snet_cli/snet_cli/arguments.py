@@ -939,35 +939,34 @@ def add_mpe_service_options(parser):
 
     p = subparsers.add_parser("metadata-init",
                               help="Init metadata file with providing protobuf directory (which we publish in IPFS) and display_name (optionally encoding, service_type and payment_expiration_threshold)")
-    p.set_defaults(fn="service_metadata_init")
-    # p.set_defaults(fn="publish_proto_metadata_init")
-    # p.add_argument("protodir",
-    #                help="Directory which contains protobuf files",
-    #                metavar="PROTO_DIR")
+    p.set_defaults(fn="publish_proto_metadata_init")
+    p.add_argument("protodir",
+                   help="Directory which contains protobuf files",
+                   metavar="PROTO_DIR")
     add_p_metadata_file_opt(p)
-    # add_p_mpe_address_opt(p)
-    # p.add_argument("display_name",
-    #                help="Service display name",
-    #                metavar="DISPLAY_NAME")
-    # p.add_argument("--group-name",
-    #                help="Name of the first payment group")
-    # p.add_argument("--endpoints",
-    #                default=[],
-    #                nargs='*',
-    #                help="Endpoints for the first group")
-    # p.add_argument("--fixed-price",
-    #                type=stragi2cogs,
-    #                help="Set fixed price in AGI token for all methods")
-    #
-    # p.add_argument("--encoding",
-    #                default="proto",
-    #                choices=['proto', 'json'],
-    #                help="Service encoding")
-    #
-    # p.add_argument("--service-type",
-    #                default="grpc",
-    #                choices=['grpc', 'jsonrpc', 'process'],
-    #                help="Service type")
+    add_p_mpe_address_opt(p)
+    p.add_argument("display_name",
+                   help="Service display name",
+                   metavar="DISPLAY_NAME")
+    p.add_argument("--group-name",
+                   help="Name of the first payment group")
+    p.add_argument("--endpoints",
+                   default=[],
+                   nargs='*',
+                   help="Endpoints for the first group")
+    p.add_argument("--fixed-price",
+                   type=stragi2cogs,
+                   help="Set fixed price in AGI token for all methods")
+
+    p.add_argument("--encoding",
+                   default="proto",
+                   choices=['proto', 'json'],
+                   help="Service encoding")
+
+    p.add_argument("--service-type",
+                   default="grpc",
+                   choices=['grpc', 'jsonrpc', 'process'],
+                   help="Service type")
 
     p = subparsers.add_parser("metadata-set-model",
                               help="Publish protobuf model in ipfs and update existed metadata file")

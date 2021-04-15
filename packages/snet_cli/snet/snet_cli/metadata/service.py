@@ -72,7 +72,8 @@ class MPEServiceMetadata:
                   "model_ipfs_hash": "",
                   "mpe_address": "",
                   "groups": [],
-                  "service_description": {}
+                  "assets": {},
+                  "media": []
                   }
 
     def set_simple_field(self, f, v):
@@ -167,33 +168,6 @@ class MPEServiceMetadata:
             if group["group_name"] == group_name:
                 self.m["groups"].remove(group)
 
-    def group_init(self, group_name):
-        """Required values for creating a new payment group."""
-        self.add_group(group_name)
-        while True:
-            try:
-                fixed_price = int(input("Set fixed price: "))
-            except Exception:
-                print("Enter a valid integer.")
-            else:
-                break
-        self.set_fixed_price_in_cogs(group_name, fixed_price)
-        while True:
-            try:
-                endpoints = input("Add endpoints as comma separated values: ").split(',')
-                for endpoint in endpoints:
-                    self.add_endpoint_to_group(group_name, endpoint.strip())
-            except Exception:
-                print("Endpoints required.")
-            else:
-                break
-        daemon_addresses = input("Add daemon addresses as comma separated values: ").split(',')
-        for daemon_address in daemon_addresses:
-            self.add_daemon_address_to_group(group_name, daemon_address.strip())
-        if input('Free calls included? [y/n] ').lower() == 'y':
-            self.set_free_calls_for_group(group_name, int(input('free calls: (15) ') or 15))
-            self.set_freecall_signer_address(group_name, input('free call signer address: '))
-
     def add_asset(self, asset_ipfs_hash, asset_type):
         # Check if we need to validation if ssame asset type is added twice if we need to add it or replace the existing one
 
@@ -239,7 +213,7 @@ class MPEServiceMetadata:
         else:
             individual_media['order'] = self.m['media'][-1]['order'] + 1
         individual_media['url'] = url
-        individual_media['file_type'] = media_type
+        individual_media['file_type']
         if media_type == 'image':
             individual_media['alt_text'] = 'hover_on_the_image_text'
         else:
@@ -378,25 +352,6 @@ class MPEServiceMetadata:
     def save_pretty(self, file_name):
         with open(file_name, 'w') as f:
             f.write(self.get_json_pretty())
-
-    def service_metadata_validate(self, check_dict):
-        """Validates whether service metadata structure is consistent
-        and is not empty. Raises exception for any inconsistency.
-
-        Args:
-            check_dict (dict): Service metadata dictionary.
-
-        """
-        for key, value in check_dict.items():
-            if isinstance(value, list):
-                if len(value) == 0:
-                    raise Exception(f'`{key}` is empty.')
-                else:
-                    for _ in value:
-                        if isinstance(_, dict):
-                            self.service_metadata_validate(_)
-            elif value == "":
-                raise Exception(f"`{key}` is empty.")
 
     def __getitem__(self, key):
         return self.m[key]
